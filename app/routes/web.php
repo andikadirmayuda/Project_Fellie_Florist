@@ -22,33 +22,34 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
     // Routes for Manager and Admin
-    Route::middleware(['role:manager,admin'])->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware(['auth', 'can:admin'])->group(function () {
         Route::resource('kategori', KategoriController::class);
         Route::resource('produk', ProdukController::class);
         Route::resource('variasi', VariasiProdukController::class);
         Route::resource('inventaris', InventarisController::class);
-        // Manager & Admin can manage users
         Route::resource('users', UserController::class);
     });
     
-    // Additional routes for Kasir
-    Route::middleware(['role:kasir'])->group(function () {
-        Route::resource('inventaris', InventarisController::class)->only(['index', 'create', 'store']);
-        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.kasir.index');
-        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.kasir.index');
+    // Routes for Kasir
+    Route::prefix('kasir')->name('kasir.')->middleware(['auth', 'can:kasir'])->group(function () {
+        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.index');
+        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.index');
+        Route::get('/inventaris', [InventarisController::class, 'index'])->name('inventaris.index');
+        Route::get('/inventaris/create', [InventarisController::class, 'create'])->name('inventaris.create');
+        Route::post('/inventaris', [InventarisController::class, 'store'])->name('inventaris.store');
     });
     
     // Routes for Karyawan
-    Route::middleware(['role:karyawan'])->group(function () {
-        Route::get('/inventaris', [InventarisController::class, 'index'])->name('inventaris.karyawan.index');
-        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.karyawan.index');
-        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.karyawan.index');
+    Route::prefix('karyawan')->name('karyawan.')->middleware(['auth', 'can:karyawan'])->group(function () {
+        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.index');
+        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.index');
+        Route::get('/inventaris', [InventarisController::class, 'index'])->name('inventaris.index');
     });
     
     // Routes for Pelanggan
-    Route::middleware(['role:pelanggan'])->group(function () {
-        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.pelanggan.index');
-        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.pelanggan.index');
+    Route::prefix('pelanggan')->name('pelanggan.')->middleware(['auth', 'can:pelanggan'])->group(function () {
+        Route::get('/produk', [ProdukController::class, 'index'])->name('produk.index');
+        Route::get('/variasi', [VariasiProdukController::class, 'index'])->name('variasi.index');
     });
 });
 

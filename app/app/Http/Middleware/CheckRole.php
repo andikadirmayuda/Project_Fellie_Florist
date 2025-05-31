@@ -8,9 +8,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    public function handle(Request $request, Closure $next, ...$roles): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user() || !in_array($request->user()->role, $roles)) {
+        if (!$request->user()) {
+            return redirect()->route('login');
+        }
+
+        $roles = array_map('trim', explode(',', implode(',', $roles)));
+        
+        if (!in_array($request->user()->role, $roles)) {
             abort(403, 'Unauthorized action.');
         }
 
