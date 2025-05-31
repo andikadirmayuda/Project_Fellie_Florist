@@ -6,27 +6,31 @@ use App\Models\Kategori;
 use Illuminate\Http\Request;
 
 class KategoriController extends Controller
-{
-    public function index()
+{    public function index()
     {
-        $kategori = Kategori::all();
-        return view('kategori.index', compact('kategori'));
+        $categories = Kategori::withCount('produk')->paginate(10);
+        return view('kategori.index', compact('categories'));
     }
 
     public function create()
     {
         return view('kategori.create');
-    }
-
-    public function store(Request $request)
+    }    public function store(Request $request)
     {
-        $request->validate([
-            'kode_kategori' => 'required|unique:kategori,kode_kategori',
-            'nama_kategori' => 'required'
+        $validated = $request->validate([
+            'kode_kategori' => 'required|string|max:255|unique:kategori',
+            'nama_kategori' => 'required|string|max:255'
+        ], [
+            'kode_kategori.required' => 'Kode kategori harus diisi.',
+            'kode_kategori.unique' => 'Kode kategori sudah digunakan.',
+            'kode_kategori.max' => 'Kode kategori tidak boleh lebih dari 255 karakter.',
+            'nama_kategori.required' => 'Nama kategori harus diisi.',
+            'nama_kategori.max' => 'Nama kategori tidak boleh lebih dari 255 karakter.'
         ]);
 
-        Kategori::create($request->all());
-        return redirect()->route('kategori.index')
+        Kategori::create($validated);
+
+        return redirect()->route('admin.kategori.index')
             ->with('success', 'Kategori berhasil ditambahkan.');
     }
 
@@ -37,20 +41,32 @@ class KategoriController extends Controller
 
     public function update(Request $request, Kategori $kategori)
     {
-        $request->validate([
-            'kode_kategori' => 'required|unique:kategori,kode_kategori,'.$kategori->id,
-            'nama_kategori' => 'required'
+        $validated = $request->validate([
+            'kode_kategori' => 'required|string|max:255|unique:kategori,kode_kategori,' . $kategori->id,
+            'nama_kategori' => 'required|string|max:255'
+        ], [
+            'kode_kategori.required' => 'Kode kategori harus diisi.',
+            'kode_kategori.unique' => 'Kode kategori sudah digunakan.',
+            'kode_kategori.max' => 'Kode kategori tidak boleh lebih dari 255 karakter.',
+            'nama_kategori.required' => 'Nama kategori harus diisi.',
+            'nama_kategori.max' => 'Nama kategori tidak boleh lebih dari 255 karakter.'
         ]);
 
-        $kategori->update($request->all());
-        return redirect()->route('kategori.index')
+        $kategori->update($validated);
+
+        return redirect()->route('admin.kategori.index')
             ->with('success', 'Kategori berhasil diperbarui.');
     }
 
     public function destroy(Kategori $kategori)
     {
+        if ($kategori->produk()->count() > 0) {
+            return back()->with('error', 'Tidak dapat menghapus kategori yang memiliki produk.');
+        }
+
         $kategori->delete();
-        return redirect()->route('kategori.index')
+
+        return redirect()->route('admin.kategori.index')
             ->with('success', 'Kategori berhasil dihapus.');
     }
 }

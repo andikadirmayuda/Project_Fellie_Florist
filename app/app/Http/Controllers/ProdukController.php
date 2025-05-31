@@ -9,87 +9,115 @@ use Illuminate\Support\Facades\Storage;
 
 class ProdukController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $produk = Produk::with('kategori')->get();
-        return view('produk.index', compact('produk'));
+        $query = Produk::with('kategori')->withCount('variations');
+        
+        if ($request->has('kategori')) {
+            $query->where('kategori_id', $request->kategori);
+        }
+
+        if ($request->has('search')) {
+            $query->where('nama', 'like', '%' . $request->search . '%');
+        }
+
+        $products = $query->paginate(10);
+        $categories = Kategori::all();
+
+        return view('produk.index', compact('products', 'categories'));
     }
 
     public function create()
     {
-        $kategori = Kategori::all();
-        return view('produk.create', compact('kategori'));
+        $categories = Kategori::all();
+        return view('produk.create', compact('categories'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'id_kategori' => 'required|exists:kategori,id',
-            'nama_produk' => 'required',
-            'kode_produk' => 'required|unique:produk,kode_produk',
-            'deskripsi' => 'nullable',
-            'gambar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'status_produk' => 'required|in:aktif,tidak_aktif'
+        $validated = $request->validate([
+            'nama' => 'required|string|max:255',
+            'deskripsi' => 'nullable|string',
+            'harga' => 'required|numeric|min:0',
+            'kategori_id' => 'required|exists:kategori,id',
+            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
-        $data = $request->all();
-        
         if ($request->hasFile('gambar')) {
-            $gambar = $request->file('gambar');
-            $path = $gambar->store('produk', 'public');
-            $data['gambar'] = $path;
+            $path = $request->file('gambar')->store('products', 'public');
+            $validated['gambar'] = $path;
         }
 
-        $data['dibuat_oleh'] = auth()->user()->name;
-        
-        Produk::create($data);
-        return redirect()->route('produk.index')
-            ->with('success', 'Produk berhasil ditambahkan.');
+        Produk::create($validated);
+
+        return redirect()->route('admin.produk.index')
+            ->with('success', 'Product created successfully.');
     }
 
     public function edit(Produk $produk)
     {
-        $kategori = Kategori::all();
-        return view('produk.edit', compact('produk', 'kategori'));
+        $categories = Kategori::all();
+        return view('produk.edit', compact('produk', 'categories'));
     }
 
     public function update(Request $request, Produk $produk)
     {
-        $request->validate([
-            'id_kategori' => 'required|exists:kategori,id',
-            'nama_produk' => 'required',
-            'kode_produk' => 'required|unique:produk,kode_produk,'.$produk->id,
-            'deskripsi' => 'nullable',
-            'gambar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'status_produk' => 'required|in:aktif,tidak_aktif'
+        $validated = $request->validate([
+            'nama' => 'required|string|max:255',
+            'deskripsi' => 'nullable|string',
+            'harga' => 'required|numeric|min:0',
+            'kategori_id' => 'required|exists:kategori,id',
+            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
-        $data = $request->all();
-
         if ($request->hasFile('gambar')) {
-            // Hapus gambar lama jika ada
+            // Delete old image
             if ($produk->gambar) {
                 Storage::disk('public')->delete($produk->gambar);
             }
-            
-            $gambar = $request->file('gambar');
-            $path = $gambar->store('produk', 'public');
-            $data['gambar'] = $path;
+            $path = $request->file('gambar')->store('products', 'public');
+            $validated['gambar'] = $path;
         }
 
-        $produk->update($data);
-        return redirect()->route('produk.index')
-            ->with('success', 'Produk berhasil diperbarui.');
+        $produk->update($validated);
+
+        return redirect()->route('admin.produk.index')
+            ->with('success', 'Product updated successfully.');
     }
 
     public function destroy(Produk $produk)
     {
+        if ($produk->variations()->count() > 0) {
+            return back()->with('error', 'Cannot delete product that has variations.');
+        }
+
+        // Delete image if exists
         if ($produk->gambar) {
             Storage::disk('public')->delete($produk->gambar);
         }
-        
+
         $produk->delete();
-        return redirect()->route('produk.index')
-            ->with('success', 'Produk berhasil dihapus.');
+
+        return redirect()->route('admin.produk.index')
+            ->with('success', 'Product deleted successfully.');
+    }
+
+    // Role-specific views
+    public function kasirIndex()
+    {
+        $products = Produk::with('kategori')->paginate(10);
+        return view('produk.kasir.index', compact('products'));
+    }
+
+    public function karyawanIndex()
+    {
+        $products = Produk::with('kategori')->paginate(10);
+        return view('produk.karyawan.index', compact('products'));
+    }
+
+    public function pelangganIndex()
+    {
+        $products = Produk::with('kategori')->paginate(10);
+        return view('produk.pelanggan.index', compact('products'));
     }
 }

@@ -25,6 +25,9 @@
             <!-- Include Sidebar -->
             @include('layouts.sidebar')
 
+            <!-- Flash Messages -->
+            <x-session-status />
+
             <!-- Page Heading -->
             @isset($header)
                 <header class="bg-white dark:bg-gray-800 shadow">

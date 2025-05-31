@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Produk extends Model
-{
-    protected $table = 'produk';
+{    protected $table = 'produk';
     protected $fillable = [
         'id_kategori',
         'nama_produk',
