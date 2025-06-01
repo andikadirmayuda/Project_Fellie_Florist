@@ -8,17 +8,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ProdukController extends Controller
-{
-    public function index(Request $request)
+{    public function index(Request $request)
     {
-        $query = Produk::with('kategori')->withCount('variations');
-        
-        if ($request->has('kategori')) {
-            $query->where('kategori_id', $request->kategori);
+        $query = Produk::with('kategori')->withCount('variasi');
+          if ($request->has('kategori')) {
+            $query->where('id_kategori', $request->kategori);
         }
 
-        if ($request->has('search')) {
-            $query->where('nama', 'like', '%' . $request->search . '%');
+        if ($request->has('search') && $request->search !== '') {
+            $query->where('nama_produk', 'like', '%' . $request->search . '%');
         }
 
         $products = $query->paginate(10);
@@ -31,15 +29,14 @@ class ProdukController extends Controller
     {
         $categories = Kategori::all();
         return view('produk.create', compact('categories'));
-    }
-
-    public function store(Request $request)
+    }    public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:255',
+            'nama_produk' => 'required|string|max:255',
+            'kode_produk' => 'required|string|max:255|unique:produk',
             'deskripsi' => 'nullable|string',
-            'harga' => 'required|numeric|min:0',
             'kategori_id' => 'required|exists:kategori,id',
+            'status_produk' => 'required|in:aktif,tidak_aktif',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -47,26 +44,30 @@ class ProdukController extends Controller
             $path = $request->file('gambar')->store('products', 'public');
             $validated['gambar'] = $path;
         }
+        
+        // Map kategori_id to id_kategori
+        $validated['id_kategori'] = $validated['kategori_id'];
+        unset($validated['kategori_id']);
+        
+        // Add dibuat_oleh
+        $validated['dibuat_oleh'] = auth()->user()->name;
 
-        Produk::create($validated);
-
-        return redirect()->route('admin.produk.index')
-            ->with('success', 'Product created successfully.');
+        Produk::create($validated);return redirect()->route('admin.produk.index')
+            ->with('success', 'Produk berhasil ditambahkan.');
     }
 
     public function edit(Produk $produk)
     {
         $categories = Kategori::all();
         return view('produk.edit', compact('produk', 'categories'));
-    }
-
-    public function update(Request $request, Produk $produk)
+    }    public function update(Request $request, Produk $produk)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:255',
+            'nama_produk' => 'required|string|max:255',
+            'kode_produk' => 'required|string|max:255|unique:produk,kode_produk,'.$produk->id,
             'deskripsi' => 'nullable|string',
-            'harga' => 'required|numeric|min:0',
             'kategori_id' => 'required|exists:kategori,id',
+            'status_produk' => 'required|in:aktif,tidak_aktif',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -79,16 +80,17 @@ class ProdukController extends Controller
             $validated['gambar'] = $path;
         }
 
-        $produk->update($validated);
-
-        return redirect()->route('admin.produk.index')
-            ->with('success', 'Product updated successfully.');
+        // Map kategori_id to id_kategori
+        $validated['id_kategori'] = $validated['kategori_id'];
+        unset($validated['kategori_id']);
+        
+        $produk->update($validated);return redirect()->route('admin.produk.index')
+            ->with('success', 'Produk berhasil diperbarui.');
     }
 
     public function destroy(Produk $produk)
-    {
-        if ($produk->variations()->count() > 0) {
-            return back()->with('error', 'Cannot delete product that has variations.');
+    {        if ($produk->variasi()->count() > 0) {
+            return back()->with('error', 'Tidak dapat menghapus produk yang memiliki variasi.');
         }
 
         // Delete image if exists
@@ -96,10 +98,13 @@ class ProdukController extends Controller
             Storage::disk('public')->delete($produk->gambar);
         }
 
-        $produk->delete();
+        $produk->delete();        return redirect()->route('admin.produk.index')
+            ->with('success', 'Produk berhasil dihapus.');
+    }
 
-        return redirect()->route('admin.produk.index')
-            ->with('success', 'Product deleted successfully.');
+    public function show(Produk $produk)
+    {
+        return view('produk.show', compact('produk'));
     }
 
     // Role-specific views
