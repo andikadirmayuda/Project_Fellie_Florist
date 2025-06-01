@@ -21,6 +21,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
+    // Base resource route for variasi
+    Route::resource('variasi', VariasiProdukController::class);
+    
     // Routes for Manager and Admin
     Route::prefix('admin')->name('admin.')->middleware(['auth', 'can:admin'])->group(function () {
         Route::resource('kategori', KategoriController::class);
